@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+  ScrollView,
+  PermissionsAndroid,
+  Platform
+} from 'react-native';
 import { mockApi } from './api';
 
 export default function ProductScreen({ user, onLogout }) {
@@ -68,6 +81,34 @@ export default function ProductScreen({ user, onLogout }) {
     }
   };
 
+  const requestCameraPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Cool Photo App Camera Permission',
+            message:
+              'Cool Photo App needs access to your camera ' +
+              'so you can take awesome pictures.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert('Permission Granted', 'You can use the camera');
+        } else {
+          Alert.alert('Permission Denied', 'Camera permission denied');
+        }
+      } catch (err) {
+        console.warn(err);
+      }
+    } else {
+      Alert.alert('Not Android', 'This feature is only demonstrating Android permissions');
+    }
+  };
+
   const renderItem = ({ item }) => (
     <View style={styles.productItem}>
       <View style={styles.productInfo}>
@@ -92,44 +133,57 @@ export default function ProductScreen({ user, onLogout }) {
         <Button title="Logout" onPress={onLogout} color="#d9534f" />
       </View>
 
-      <View style={styles.formContainer}>
-        <Text style={styles.formTitle}>{editingId ? 'Edit Product' : 'Add New Product'}</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Product Name"
-          value={name}
-          onChangeText={setName}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Price"
-          value={price}
-          onChangeText={setPrice}
-          keyboardType="numeric"
-        />
-        <View style={styles.formActions}>
-          <Button title={editingId ? 'Update' : 'Add'} onPress={handleSave} />
-          {editingId && (
-            <View style={styles.cancelButtonContainer}>
-              <Button title="Cancel" onPress={handleCancelEdit} color="#6c757d" />
-            </View>
-          )}
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+
+        <View style={styles.permissionContainer}>
+          <Text style={styles.permissionText}>Test Android Permissions:</Text>
+          <TouchableOpacity style={styles.permissionButton} onPress={requestCameraPermission}>
+            <Text style={styles.permissionButtonText}>Request Camera Permission</Text>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      <Text style={styles.listTitle}>Product List</Text>
+        <View style={styles.formContainer}>
+          <Text style={styles.formTitle}>{editingId ? 'Edit Product' : 'Add New Product'}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Product Name"
+            value={name}
+            onChangeText={setName}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Price"
+            value={price}
+            onChangeText={setPrice}
+            keyboardType="numeric"
+          />
+          <View style={styles.formActions}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleSave}>
+               <Text style={styles.actionButtonText}>{editingId ? 'Update Product' : 'Add Product'}</Text>
+            </TouchableOpacity>
+            {editingId && (
+              <TouchableOpacity style={[styles.actionButton, styles.cancelButton]} onPress={handleCancelEdit}>
+                 <Text style={styles.actionButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
-      ) : (
-        <FlatList
-          data={products}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={<Text style={styles.emptyText}>No products found.</Text>}
-        />
-      )}
+        <Text style={styles.listTitle}>Product List</Text>
+
+        {loading ? (
+          <ActivityIndicator size="large" color="#0000ff" />
+        ) : (
+          <FlatList
+            data={products}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={<Text style={styles.emptyText}>No products found.</Text>}
+            scrollEnabled={false} // Since it's inside a ScrollView
+          />
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -151,6 +205,33 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  permissionContainer: {
+    padding: 15,
+    backgroundColor: '#e9ecef',
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  permissionText: {
+    fontSize: 14,
+    marginBottom: 10,
+    color: '#495057',
+  },
+  permissionButton: {
+    backgroundColor: '#17a2b8',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  permissionButtonText: {
+    color: '#fff',
     fontWeight: 'bold',
   },
   formContainer: {
@@ -176,8 +257,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-start',
   },
-  cancelButtonContainer: {
-    marginLeft: 10,
+  actionButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  cancelButton: {
+    backgroundColor: '#6c757d',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   listTitle: {
     fontSize: 18,
@@ -216,21 +308,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   editButton: {
-    backgroundColor: '#007bff',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    backgroundColor: '#ffc107',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 3,
     marginRight: 5,
   },
   deleteButton: {
     backgroundColor: '#dc3545',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 3,
   },
   buttonText: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: 'bold',
   },
   emptyText: {
     textAlign: 'center',
