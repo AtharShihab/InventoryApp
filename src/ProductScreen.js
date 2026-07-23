@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, Button, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { mockApi } from './api';
 
 export default function ProductScreen({ user, onLogout }) {
@@ -7,6 +8,7 @@ export default function ProductScreen({ user, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [image, setImage] = useState(null);
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
@@ -25,6 +27,19 @@ export default function ProductScreen({ user, onLogout }) {
     }
   };
 
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
+
   const handleSave = async () => {
     if (!name || !price) {
       Alert.alert('Error', 'Please enter product name and price');
@@ -33,15 +48,16 @@ export default function ProductScreen({ user, onLogout }) {
 
     try {
       if (editingId) {
-        const updatedProduct = await mockApi.updateProduct(editingId, { name, price });
+        const updatedProduct = await mockApi.updateProduct(editingId, { name, price, image });
         setProducts(products.map(p => p.id === editingId ? updatedProduct : p));
         setEditingId(null);
       } else {
-        const newProduct = await mockApi.addProduct({ name, price });
+        const newProduct = await mockApi.addProduct({ name, price, image });
         setProducts([...products, newProduct]);
       }
       setName('');
       setPrice('');
+      setImage(null);
     } catch (error) {
       Alert.alert('Error', error.message);
     }
@@ -51,12 +67,14 @@ export default function ProductScreen({ user, onLogout }) {
     setEditingId(product.id);
     setName(product.name);
     setPrice(product.price);
+    setImage(product.image || null);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setName('');
     setPrice('');
+    setImage(null);
   };
 
   const handleDelete = async (id) => {
@@ -70,6 +88,7 @@ export default function ProductScreen({ user, onLogout }) {
 
   const renderItem = ({ item }) => (
     <View style={styles.productItem}>
+      {item.image && <Image source={{ uri: item.image }} style={styles.productListImage} />}
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.name}</Text>
         <Text style={styles.productPrice}>${item.price}</Text>
@@ -107,6 +126,10 @@ export default function ProductScreen({ user, onLogout }) {
           onChangeText={setPrice}
           keyboardType="numeric"
         />
+        <View style={styles.imagePickerContainer}>
+          <Button title="Pick an image" onPress={pickImage} />
+          {image && <Image source={{ uri: image }} style={styles.imagePreview} />}
+        </View>
         <View style={styles.formActions}>
           <Button title={editingId ? 'Update' : 'Add'} onPress={handleSave} />
           {editingId && (
@@ -172,6 +195,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 5,
   },
+  imagePickerContainer: {
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  imagePreview: {
+    width: 100,
+    height: 100,
+    marginTop: 10,
+    borderRadius: 5,
+  },
   formActions: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
@@ -199,6 +232,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     borderWidth: 1,
     borderColor: '#ddd',
+  },
+  productListImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 5,
+    marginRight: 10,
   },
   productInfo: {
     flex: 1,
